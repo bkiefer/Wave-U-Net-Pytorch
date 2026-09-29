@@ -100,7 +100,9 @@ class DownsamplingBlock(nn.Module):
         return curr_size
 
 class Waveunet(nn.Module):
-    def __init__(self, num_inputs, num_channels, num_outputs, instruments, kernel_size, target_output_size, conv_type, res, separate=False, depth=1, strides=2):
+    def __init__(self, num_inputs, num_channels, num_outputs,
+                 kernel_size, target_output_size, conv_type,
+                 res, depth=1, strides=2):
         super(Waveunet, self).__init__()
 
         self.num_levels = len(num_channels)
@@ -109,40 +111,33 @@ class Waveunet(nn.Module):
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
         self.depth = depth
-        self.instruments = instruments
-        self.separate = separate
 
         # Only odd filter kernels allowed
         assert(kernel_size % 2 == 1)
 
-        self.waveunets = nn.ModuleDict()
+        module = nn.Module()
 
-        model_list = instruments if separate else ["ALL"]
-        # Create a model for each source if we separate sources separately, otherwise only one (model_list=["ALL"])
-        for instrument in model_list:
-            module = nn.Module()
+        module.downsampling_blocks = nn.ModuleList()
+        module.upsampling_blocks = nn.ModuleList()
 
-            module.downsampling_blocks = nn.ModuleList()
-            module.upsampling_blocks = nn.ModuleList()
+        for i in range(self.num_levels - 1):
+            in_ch = num_inputs if i == 0 else num_channels[i]
 
-            for i in range(self.num_levels - 1):
-                in_ch = num_inputs if i == 0 else num_channels[i]
+            module.downsampling_blocks.append(
+                DownsamplingBlock(in_ch, num_channels[i], num_channels[i+1], kernel_size, strides, depth, conv_type, res))
 
-                module.downsampling_blocks.append(
-                    DownsamplingBlock(in_ch, num_channels[i], num_channels[i+1], kernel_size, strides, depth, conv_type, res))
+        for i in range(0, self.num_levels - 1):
+            module.upsampling_blocks.append(
+                UpsamplingBlock(num_channels[-1-i], num_channels[-2-i], num_channels[-2-i], kernel_size, strides, depth, conv_type, res))
 
-            for i in range(0, self.num_levels - 1):
-                module.upsampling_blocks.append(
-                    UpsamplingBlock(num_channels[-1-i], num_channels[-2-i], num_channels[-2-i], kernel_size, strides, depth, conv_type, res))
+        module.bottlenecks = nn.ModuleList(
+            [ConvLayer(num_channels[-1], num_channels[-1], kernel_size, 1, conv_type) for _ in range(depth)])
 
-            module.bottlenecks = nn.ModuleList(
-                [ConvLayer(num_channels[-1], num_channels[-1], kernel_size, 1, conv_type) for _ in range(depth)])
+        # Output conv
+        outputs = num_outputs
+        module.output_conv = nn.Conv1d(num_channels[0], outputs, 1)
 
-            # Output conv
-            outputs = num_outputs if separate else num_outputs * len(instruments)
-            module.output_conv = nn.Conv1d(num_channels[0], outputs, 1)
-
-            self.waveunets[instrument] = module
+        self.waveunet = module
 
         self.set_output_size(target_output_size)
 
@@ -169,7 +164,7 @@ class Waveunet(nn.Module):
             bottleneck += 1
 
     def check_padding_for_bottleneck(self, bottleneck, target_output_size):
-        module = self.waveunets[[k for k in self.waveunets.keys()][0]]
+        module = self.waveunet
         try:
             curr_size = bottleneck
             for idx, block in enumerate(module.upsampling_blocks):
@@ -221,13 +216,5 @@ class Waveunet(nn.Module):
         curr_input_size = x.shape[-1]
         assert(curr_input_size == self.input_size) # User promises to feed the proper input himself, to get the pre-calculated (NOT the originally desired) output size
 
-        if self.separate:
-            return {inst : self.forward_module(x, self.waveunets[inst])}
-        else:
-            assert(len(self.waveunets) == 1)
-            out = self.forward_module(x, self.waveunets["ALL"])
-
-            out_dict = {}
-            for idx, inst in enumerate(self.instruments):
-                out_dict[inst] = out[:, idx * self.num_outputs:(idx + 1) * self.num_outputs]
-            return out_dict
+        out = self.forward_module(x, self.waveunet)
+        return out

@@ -8,14 +8,14 @@ import pickle
 import numpy as np
 
 import torch.nn as nn
-from torch.utils.tensorboard import SummaryWriter
+#from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from tqdm import tqdm
 
 import model.utils as model_utils
 import utils
-from data.dataset import SeparationDataset
-from data.musdb import get_musdb_folds
+from data.dataset_enhancer import EnhancementDataset
+#from data.musdb import get_musdb_folds
 from data.utils import crop_targets, random_amplify
 from test import evaluate, validate
 from model.waveunet import Waveunet
@@ -27,9 +27,9 @@ def main(args):
     num_features = [args.features*i for i in range(1, args.levels+1)] if args.feature_growth == "add" else \
                    [args.features*2**i for i in range(0, args.levels)]
     target_outputs = int(args.output_size * args.sr)
-    model = Waveunet(args.channels, num_features, args.channels, args.instruments, kernel_size=args.kernel_size,
+    model = Waveunet(args.channels, num_features, args.channels, kernel_size=args.kernel_size,
                      target_output_size=target_outputs, depth=args.depth, strides=args.strides,
-                     conv_type=args.conv_type, res=args.res, separate=args.separate)
+                     conv_type=args.conv_type, res=args.res)
 
     if args.cuda:
         model = model_utils.DataParallel(model)
@@ -39,17 +39,24 @@ def main(args):
     print('model: ', model)
     print('parameter count: ', str(sum(p.numel() for p in model.parameters())))
 
-    writer = SummaryWriter(args.log_dir)
+    # TODO maybe reactivate
+    #writer = SummaryWriter(args.log_dir)
 
     ### DATASET
-    musdb = get_musdb_folds(args.dataset_dir)
+    # TODO replace
+    #musdb = get_musdb_folds(args.dataset_dir)
     # If not data augmentation, at least crop targets to fit model output shape
     crop_func = partial(crop_targets, shapes=model.shapes)
     # Data augmentation function for training
     augment_func = partial(random_amplify, shapes=model.shapes, min=0.7, max=1.0)
-    train_data = SeparationDataset(musdb, "train", args.instruments, args.sr, args.channels, model.shapes, True, args.hdf_dir, audio_transform=augment_func)
-    val_data = SeparationDataset(musdb, "val", args.instruments, args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=crop_func)
-    test_data = SeparationDataset(musdb, "test", args.instruments, args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=crop_func)
+
+    def get_name(split, what):
+        return args.dataset_dir + "/" + what + "_" + split + ".list"
+
+#    train_data = EnhancementDataset(get_name('voice', 'train'), get_name('noise', 'train'), "train", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=augment_func)
+    train_data = EnhancementDataset(args.dataset_dir + "/voice.list", args.dataset_dir + '/noise.list', "train", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=None)
+    #val_data = EnhancementDataset(clean_val, noisy_val,"val", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=crop_func)
+    #test_data = EnhancementDataset(clean_test, noisy_test,"test", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=crop_func)
 
     dataloader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, worker_init_fn=utils.worker_init_fn)
 
@@ -70,7 +77,7 @@ def main(args):
     state = {"step" : 0,
              "worse_epochs" : 0,
              "epochs" : 0,
-             "best_loss" : np.Inf}
+             "best_loss" : np.inf}
 
     # LOAD MODEL CHECKPOINT IF DESIRED
     if args.load_model is not None:
@@ -172,8 +179,6 @@ def main(args):
 if __name__ == '__main__':
     ## TRAIN PARAMETERS
     parser = argparse.ArgumentParser()
-    parser.add_argument('--instruments', type=str, nargs='+', default=["bass", "drums", "other", "vocals"],
-                        help="List of instruments to separate (default: \"bass drums other vocals\")")
     parser.add_argument('--cuda', action='store_true',
                         help='Use CUDA (default: False)')
     parser.add_argument('--num_workers', type=int, default=1,
@@ -182,7 +187,7 @@ if __name__ == '__main__':
                         help='Number of feature channels per layer')
     parser.add_argument('--log_dir', type=str, default='logs/waveunet',
                         help='Folder to write logs into')
-    parser.add_argument('--dataset_dir', type=str, default="/mnt/windaten/Datasets/MUSDB18HQ",
+    parser.add_argument('--dataset_dir', type=str, default="/home/kiefer/media/Transport/tetra",
                         help='Dataset path')
     parser.add_argument('--hdf_dir', type=str, default="hdf",
                         help='Dataset path')
@@ -202,9 +207,9 @@ if __name__ == '__main__':
                         help="Number of DS/US blocks")
     parser.add_argument('--depth', type=int, default=1,
                         help="Number of convs per block")
-    parser.add_argument('--sr', type=int, default=44100,
+    parser.add_argument('--sr', type=int, default=16000,
                         help="Sampling rate")
-    parser.add_argument('--channels', type=int, default=2,
+    parser.add_argument('--channels', type=int, default=1,
                         help="Number of input audio channels")
     parser.add_argument('--kernel_size', type=int, default=5,
                         help="Filter width of kernels. Has to be an odd number")
@@ -222,8 +227,6 @@ if __name__ == '__main__':
                         help="Type of convolution (normal, BN-normalised, GN-normalised): normal/bn/gn")
     parser.add_argument('--res', type=str, default="fixed",
                         help="Resampling strategy: fixed sinc-based lowpass filtering or learned conv layer: fixed/learned")
-    parser.add_argument('--separate', type=int, default=1,
-                        help="Train separate model for each source (1) or only one (0)")
     parser.add_argument('--feature_growth', type=str, default="double",
                         help="How the features in each layer should grow, either (add) the initial number of features each time, or multiply by 2 (double)")
 

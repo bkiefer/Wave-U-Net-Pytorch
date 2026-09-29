@@ -1,0 +1,25 @@
+[project]
+name = "waveUnet"
+version = "0.1.0"
+description = "Wave U-Net by f90"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "pyyaml>=6.0",
+    "numpy",
+    "torch",
+    "torchaudio",
+    "soundfile",
+    "tqdm",
+    "h5py",
+    "sortedcontainers",
+    "librosa"
+]
+
+[[tool.uv.index]]
+name = "cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "cu126" }
