@@ -14,7 +14,8 @@ dependencies = [
     "h5py",
     "sortedcontainers",
     "librosa",
-    "tensorboard"
+    "tensorboard",
+    "resampy"
 ]
 
 [[tool.uv.index]]

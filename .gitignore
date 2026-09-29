@@ -20,3 +20,4 @@ hdf/**
 logs/**
 model/**
 !models/.gitkeep
+checkpoints/**

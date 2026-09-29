@@ -1,4 +1,4 @@
-import museval
+#import museval
 from tqdm import tqdm
 
 import numpy as np
@@ -191,8 +191,7 @@ def validate(args, model, criterion, test_data):
         for example_num, (x, targets) in enumerate(dataloader):
             if args.cuda:
                 x = x.cuda()
-                for k in list(targets.keys()):
-                    targets[k] = targets[k].cuda()
+                targets = targets.cuda()
 
             _, avg_loss = model_utils.compute_loss(model, x, targets, criterion)
 

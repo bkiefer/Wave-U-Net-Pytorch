@@ -50,21 +50,13 @@ def main(args):
     # Data augmentation function for training
     augment_func = partial(random_amplify, shapes=model.shapes, min=0.7, max=1.0)
 
-    def get_name(split, what):
-        return args.dataset_dir + "/" + what + "_" + split + ".list"
+    def get_name(what, split):
+        #return args.dataset_dir + "/" + what + "_" + split + ".list"
+        return args.dataset_dir + "/" + what + ".list"
 
-#    train_data = EnhancementDataset(get_name('voice', 'train'), get_name('noise', 'train'), "train", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=augment_func)
-    train_data = EnhancementDataset(args.dataset_dir + "/voice.list",
-                                    args.dataset_dir + '/noise.list',
-                                    "train",
-                                    args.sr,
-                                    args.channels,
-                                    model.shapes,
-                                    False,
-                                    args.hdf_dir,
-                                    audio_transform=augment_func)
-    #val_data = EnhancementDataset(clean_val, noisy_val,"val", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=crop_func)
-    #test_data = EnhancementDataset(clean_test, noisy_test,"test", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=crop_func)
+    train_data = EnhancementDataset(get_name('voice', 'train'), get_name('noise', 'train'), "train", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=augment_func)
+    val_data = EnhancementDataset(get_name('val_voice', 'val'), get_name('val_noise', 'val'), "val", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=crop_func)
+    test_data = EnhancementDataset(get_name('test_voice', 'test'), get_name('test_noise', 'test'), "test", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=crop_func)
 
     dataloader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, worker_init_fn=utils.worker_init_fn)
 
