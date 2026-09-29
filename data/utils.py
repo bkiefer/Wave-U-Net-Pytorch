@@ -15,15 +15,18 @@ def random_amplify(mix, targets, shapes, min, max):
     :return: New data point as tuple (mix, targets)
     '''
     residual = mix  # start with original mix
-    for key in targets.keys():
-        if key != "mix":
-            residual -= targets[key]  # subtract all instruments (output is zero if all instruments add to mix)
+    #for key in targets.keys():
+    #    if key != "mix":
+    #        residual -= targets[key]  # subtract all instruments (output is zero if all instruments add to mix)
+    residual -= targets
     mix = residual * np.random.uniform(min, max)  # also apply gain data augmentation to residual
-    for key in targets.keys():
-        if key != "mix":
-            targets[key] = targets[key] * np.random.uniform(min, max)
-            mix += targets[key]  # add instrument with gain data augmentation to mix
-    mix = np.clip(mix, -1.0, 1.0)
+    # for key in targets.keys():
+    #     if key != "mix":
+    #         targets[key] = targets[key] * np.random.uniform(min, max)
+    #         mix += targets[key]  # add instrument with gain data augmentation to mix
+    targets = targets * np.random.uniform(min, max)
+    mix += targets
+    # mix = np.clip(mix, -1.0, 1.0)
     return crop_targets(mix, targets, shapes)
 
 
@@ -31,9 +34,10 @@ def crop_targets(mix, targets, shapes):
     '''
     Crops target audio to the output shape required by the model given in "shapes"
     '''
-    for key in targets.keys():
-        if key != "mix":
-            targets[key] = targets[key][:, shapes["output_start_frame"]:shapes["output_end_frame"]]
+    # for key in targets.keys():
+    #     if key != "mix":
+    #         targets[key] = targets[key][:, shapes["output_start_frame"]:shapes["output_end_frame"]]
+    targets = targets[:, shapes["output_start_frame"]:shapes["output_end_frame"]]
     return mix, targets
 
 

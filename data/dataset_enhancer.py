@@ -40,8 +40,8 @@ class EnhancementDataset(Dataset):
 
         # PREPARE HDF FILE
 
-        if os.path.exists(self.hdf_dir):
-            Path(self.hdf_dir).unlink()
+        # while still developing
+        #if os.path.exists(self.hdf_dir): Path(self.hdf_dir).unlink()
 
         # Check if HDF file exists already
         if not os.path.exists(self.hdf_dir):
@@ -150,8 +150,6 @@ class EnhancementDataset(Dataset):
         targets = self.hdf_dataset[str(audio_idx)]["targets"][:, start_pos:end_pos].astype(np.float32)
         if pad_front > 0 or pad_back > 0:
             targets = np.pad(targets, [(0, 0), (pad_front, pad_back)], mode="constant", constant_values=0.0)
-
-        #targets = {inst : targets[idx*self.channels:(idx+1)*self.channels] for idx, inst in enumerate(self.instruments)}
 
         if hasattr(self, "audio_transform") and self.audio_transform is not None:
             audio, targets = self.audio_transform(audio, targets)

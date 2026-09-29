@@ -8,7 +8,7 @@ import pickle
 import numpy as np
 
 import torch.nn as nn
-#from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from tqdm import tqdm
 
@@ -40,7 +40,7 @@ def main(args):
     print('parameter count: ', str(sum(p.numel() for p in model.parameters())))
 
     # TODO maybe reactivate
-    #writer = SummaryWriter(args.log_dir)
+    writer = SummaryWriter(args.log_dir)
 
     ### DATASET
     # TODO replace
@@ -54,7 +54,15 @@ def main(args):
         return args.dataset_dir + "/" + what + "_" + split + ".list"
 
 #    train_data = EnhancementDataset(get_name('voice', 'train'), get_name('noise', 'train'), "train", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=augment_func)
-    train_data = EnhancementDataset(args.dataset_dir + "/voice.list", args.dataset_dir + '/noise.list', "train", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=None)
+    train_data = EnhancementDataset(args.dataset_dir + "/voice.list",
+                                    args.dataset_dir + '/noise.list',
+                                    "train",
+                                    args.sr,
+                                    args.channels,
+                                    model.shapes,
+                                    False,
+                                    args.hdf_dir,
+                                    audio_transform=augment_func)
     #val_data = EnhancementDataset(clean_val, noisy_val,"val", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=crop_func)
     #test_data = EnhancementDataset(clean_test, noisy_test,"test", args.sr, args.channels, model.shapes, False, args.hdf_dir, audio_transform=crop_func)
 
@@ -94,8 +102,7 @@ def main(args):
             for example_num, (x, targets) in enumerate(dataloader):
                 if args.cuda:
                     x = x.cuda()
-                    for k in list(targets.keys()):
-                        targets[k] = targets[k].cuda()
+                    targets = targets.cuda()
 
                 t = time.time()
 
@@ -120,9 +127,8 @@ def main(args):
                     input_centre = torch.mean(x[0, :, model.shapes["output_start_frame"]:model.shapes["output_end_frame"]], 0) # Stereo not supported for logs yet
                     writer.add_audio("input", input_centre, state["step"], sample_rate=args.sr)
 
-                    for inst in outputs.keys():
-                        writer.add_audio(inst + "_pred", torch.mean(outputs[inst][0], 0), state["step"], sample_rate=args.sr)
-                        writer.add_audio(inst + "_target", torch.mean(targets[inst][0], 0), state["step"], sample_rate=args.sr)
+                    writer.add_audio("out_pred", torch.mean(outputs[0], 0), state["step"], sample_rate=args.sr)
+                    writer.add_audio("out_target", torch.mean(targets[0], 0), state["step"], sample_rate=args.sr)
 
                 pbar.update(1)
 

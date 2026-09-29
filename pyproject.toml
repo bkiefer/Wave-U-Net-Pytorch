@@ -13,7 +13,8 @@ dependencies = [
     "tqdm",
     "h5py",
     "sortedcontainers",
-    "librosa"
+    "librosa",
+    "tensorboard"
 ]
 
 [[tool.uv.index]]
