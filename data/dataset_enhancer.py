@@ -1,19 +1,16 @@
-import os
+from pathlib import Path
 
 import h5py
 import numpy as np
 from sortedcontainers import SortedList
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
-from pathlib import Path
-from data.utils import load
-
+from data.prepare_dataset import prepare_hdf_file
 
 class EnhancementDataset(Dataset):
-    def __init__(self, clean_data_file, noisy_data_file,
+    def __init__(self, hdf_dir,
                  partition, sr, channels,
-                 shapes, random_hops, hdf_dir,
+                 shapes, random_hops,
                  audio_transform=None, in_memory=False):
         '''
         Initialises a source separation dataset
@@ -28,8 +25,9 @@ class EnhancementDataset(Dataset):
         super(EnhancementDataset, self).__init__()
 
         self.hdf_dataset = None
-        os.makedirs(hdf_dir, exist_ok=True)
-        self.hdf_dir = os.path.join(hdf_dir, partition + ".hdf5")
+        hdf_dir = Path(hdf_dir)
+        hdf_dir.mkdir(parents=True, exist_ok=True)
+        self.hdf_dir = Path(hdf_dir) / partition + ".hdf5"
 
         self.random_hops = random_hops
         self.sr = sr
@@ -38,48 +36,9 @@ class EnhancementDataset(Dataset):
         self.audio_transform = audio_transform
         self.in_memory = in_memory
 
-        # PREPARE HDF FILE
-
-        # while still developing
-        #if os.path.exists(self.hdf_dir): Path(self.hdf_dir).unlink()
-
-        # Check if HDF file exists already
-        if not os.path.exists(self.hdf_dir):
-            # Create folder if it did not exist before
-            if not os.path.exists(hdf_dir):
-                os.makedirs(hdf_dir)
-
-            # Create HDF file
-            with h5py.File(self.hdf_dir, "w") as f:
-                f.attrs["sr"] = sr
-                f.attrs["channels"] = channels
-
-                clean_root = Path(clean_data_file).parent
-                noisy_root = Path(noisy_data_file).parent
-
-                print("Adding audio files to dataset (preprocessing)...")
-                with open(clean_data_file, "r") as cf:
-                    clean_data = (l.strip() for l in cf.readlines())
-                with open(noisy_data_file, "r") as nf:
-                    noisy_data = (l.strip() for l in nf.readlines())
-
-                for idx, (clean, noisy) in enumerate(tqdm(zip(clean_data, noisy_data))):
-                    # Load mix
-                    clean_audio, _ = load(clean_root / clean, sr=self.sr, mono=(self.channels == 1))
-                    noisy_audio, _ = load(noisy_root / noisy, sr=self.sr, mono=(self.channels == 1))
-                    # audio off 1 sec prefix and suffix from noisy
-                    DEFAULT_NOISY_PAD_SAMPLES = int(self.sr * 1.0) # seconds
-                    pad_samples = DEFAULT_NOISY_PAD_SAMPLES
-                    noisy_audio = noisy_audio[:,pad_samples:-pad_samples]
-                    # TODO normalize?
-                    assert(noisy_audio.shape[1] == clean_audio.shape[1])
-
-                    # Add to HDF5 file
-                    grp = f.create_group(str(idx))
-                    grp.create_dataset("targets", shape=clean_audio.shape, dtype=clean_audio.dtype, data=clean_audio)
-                    grp.create_dataset("inputs", shape=noisy_audio.shape, dtype=noisy_audio.dtype, data=noisy_audio)
-                    # lengths are identical
-                    grp.attrs["length"] = clean_audio.shape[1]
+        # Check if HDF file exists
+        if not self.hdf_dir.exists():
+            raise ValueError("HDF file does not exist")
 
         # In that case, check whether sr and channels are complying with the audio in the HDF file, otherwise raise error
         with h5py.File(self.hdf_dir, "r") as f:
@@ -101,6 +60,7 @@ class EnhancementDataset(Dataset):
 
         self.start_pos = SortedList(np.cumsum(lengths))
         self.length = self.start_pos[-1]
+
 
     def __getitem__(self, index):
         # Open HDF5
