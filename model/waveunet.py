@@ -6,9 +6,10 @@ from model.resample import Resample1d
 from model.conv import ConvLayer
 
 class UpsamplingBlock(nn.Module):
-    def __init__(self, n_inputs, n_shortcut, n_outputs, kernel_size, stride, depth, conv_type, res):
+    def __init__(self, n_inputs, n_shortcut, n_outputs, kernel_size, stride, depth, conv_type, res, use_shortcut=True):
         super(UpsamplingBlock, self).__init__()
         assert(stride > 1)
+        self.use_shortcut = use_shortcut
 
         # CONV 1 for UPSAMPLING
         if res == "fixed":
@@ -19,8 +20,12 @@ class UpsamplingBlock(nn.Module):
         self.pre_shortcut_convs = nn.ModuleList([ConvLayer(n_inputs, n_outputs, kernel_size, 1, conv_type)] +
                                                 [ConvLayer(n_outputs, n_outputs, kernel_size, 1, conv_type) for _ in range(depth - 1)])
 
-        # CONVS to combine high- with low-level information (from shortcut)
-        self.post_shortcut_convs = nn.ModuleList([ConvLayer(n_outputs + n_shortcut, n_outputs, kernel_size, 1, conv_type)] +
+        # CONVS to combine high- with low-level information (from CONCATENATIVE shortcut)
+        #self.post_shortcut_convs = nn.ModuleList([ConvLayer(n_outputs + n_shortcut, n_outputs, kernel_size, 1, conv_type)] +
+        #                                         [ConvLayer(n_outputs, n_outputs, kernel_size, 1, conv_type) for _ in range(depth - 1)])
+
+        # CONVS to combine high- with low-level information (from RESIDUAL shortcut)
+        self.post_shortcut_convs = nn.ModuleList([ConvLayer(n_outputs, n_outputs, kernel_size, 1, conv_type)] +
                                                  [ConvLayer(n_outputs, n_outputs, kernel_size, 1, conv_type) for _ in range(depth - 1)])
 
     def forward(self, x, shortcut):
@@ -30,12 +35,23 @@ class UpsamplingBlock(nn.Module):
         for conv in self.pre_shortcut_convs:
             upsampled = conv(upsampled)
 
-        # Prepare shortcut connection
-        combined = centre_crop(shortcut, upsampled)
+        if self.use_shortcut:
+            # Prepare shortcut connection
+            combined = centre_crop(shortcut, upsampled)
+            combined = torch.add(combined, upsampled)
 
-        # Combine high- and low-level features
-        for conv in self.post_shortcut_convs:
-            combined = conv(torch.cat([combined, centre_crop(upsampled, combined)], dim=1))
+            # Combine high- and low-level features
+            for conv in self.post_shortcut_convs:
+                # concatenative skip connection
+                #combi = torch.cat([combined, centre_crop(upsampled, combined)], dim=1)
+                # residual skip connection
+                combi = torch.add(combined, centre_crop(upsampled, combined))
+                combined = conv(combi)
+        else:
+            combined = upsampled
+            for conv in self.post_shortcut_convs:
+                combined = conv(combined)
+
         return combined
 
     def get_output_size(self, input_size):
@@ -128,7 +144,8 @@ class Waveunet(nn.Module):
 
         for i in range(0, self.num_levels - 1):
             module.upsampling_blocks.append(
-                UpsamplingBlock(num_channels[-1-i], num_channels[-2-i], num_channels[-2-i], kernel_size, strides, depth, conv_type, res))
+                UpsamplingBlock(num_channels[-1-i], num_channels[-2-i], num_channels[-2-i], kernel_size, strides, depth, conv_type, res,
+                                use_shortcut=(i >= self.num_levels - 3)))
 
         module.bottlenecks = nn.ModuleList(
             [ConvLayer(num_channels[-1], num_channels[-1], kernel_size, 1, conv_type) for _ in range(depth)])

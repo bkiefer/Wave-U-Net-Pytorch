@@ -174,7 +174,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--cuda', action='store_true',
                         help='Use CUDA (default: False)')
-    parser.add_argument('--num_workers', type=int, default=1,
+    parser.add_argument('--num_workers', type=int, default=2,
                         help='Number of data loader worker threads (default: 1)')
     parser.add_argument('--features', type=int, default=32,
                         help='Number of feature channels per layer')
@@ -194,7 +194,7 @@ if __name__ == '__main__':
                         help='Minimum learning rate in LR cycle (default: 5e-5)')
     parser.add_argument('--cycles', type=int, default=2,
                         help='Number of LR cycles per epoch')
-    parser.add_argument('--batch_size', type=int, default=4,
+    parser.add_argument('--batch_size', type=int, default=8,
                         help="Batch size")
     parser.add_argument('--levels', type=int, default=6,
                         help="Number of DS/US blocks")
@@ -218,7 +218,7 @@ if __name__ == '__main__':
                         help="L1 or L2")
     parser.add_argument('--conv_type', type=str, default="gn",
                         help="Type of convolution (normal, BN-normalised, GN-normalised): normal/bn/gn")
-    parser.add_argument('--res', type=str, default="fixed",
+    parser.add_argument('--res', type=str, default="learned",
                         help="Resampling strategy: fixed sinc-based lowpass filtering or learned conv layer: fixed/learned")
     parser.add_argument('--feature_growth', type=str, default="double",
                         help="How the features in each layer should grow, either (add) the initial number of features each time, or multiply by 2 (double)")

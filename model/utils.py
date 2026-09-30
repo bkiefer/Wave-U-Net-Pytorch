@@ -13,13 +13,13 @@ def save_model(model, optimizer, state, path):
     }, path)
 
 
-def load_model(model, optimizer, path, cuda):
+def load_model(model, optimizer, path, cuda, weights_only=True):
     if isinstance(model, torch.nn.DataParallel):
         model = model.module  # load state dict of wrapped module
     if cuda:
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, weights_only=weights_only)
     else:
-        checkpoint = torch.load(path, map_location='cpu')
+        checkpoint = torch.load(path, map_location='cpu', weights_only=weights_only)
     try:
         model.load_state_dict(checkpoint['model_state_dict'])
     except:
