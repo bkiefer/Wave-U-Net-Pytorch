@@ -76,8 +76,8 @@ class EnhancementDataset(Dataset):
 
                     # Add to HDF5 file
                     grp = f.create_group(str(idx))
-                    grp.create_dataset("inputs", shape=clean_audio.shape, dtype=clean_audio.dtype, data=clean_audio)
-                    grp.create_dataset("targets", shape=noisy_audio.shape, dtype=noisy_audio.dtype, data=noisy_audio)
+                    grp.create_dataset("targets", shape=clean_audio.shape, dtype=clean_audio.dtype, data=clean_audio)
+                    grp.create_dataset("inputs", shape=noisy_audio.shape, dtype=noisy_audio.dtype, data=noisy_audio)
                     # lengths are identical
                     grp.attrs["length"] = clean_audio.shape[1]
 
