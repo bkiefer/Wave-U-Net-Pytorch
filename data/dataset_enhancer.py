@@ -5,7 +5,6 @@ import numpy as np
 from sortedcontainers import SortedList
 from torch.utils.data import Dataset
 
-from data.prepare_dataset import prepare_hdf_file
 
 class EnhancementDataset(Dataset):
     def __init__(self, hdf_dir,
@@ -27,7 +26,7 @@ class EnhancementDataset(Dataset):
         self.hdf_dataset = None
         hdf_dir = Path(hdf_dir)
         hdf_dir.mkdir(parents=True, exist_ok=True)
-        self.hdf_dir = Path(hdf_dir) / partition + ".hdf5"
+        self.hdf_dir = Path(hdf_dir) / (partition + ".hdf5")
 
         self.random_hops = random_hops
         self.sr = sr

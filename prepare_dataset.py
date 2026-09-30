@@ -3,7 +3,7 @@ import os
 import h5py
 from tqdm import tqdm
 
-from utils import load
+from data.utils import load
 from pathlib import Path
 from random import shuffle
 
@@ -16,8 +16,8 @@ def prepare_hdf_file(hdf_dir, pair_list,
         f.attrs["sr"] = sr
         f.attrs["channels"] = channels
 
-        for clean, noisy in tqdm(pair_list):
-            idx = Path(clean).name
+        for idx, (clean, noisy) in enumerate(tqdm(pair_list)):
+            # idx = Path(clean).name
             # Load mix
             clean_audio, _ = load(clean_root / clean, sr=sr,
                                   mono=(channels == 1))
@@ -33,7 +33,7 @@ def prepare_hdf_file(hdf_dir, pair_list,
                 continue
 
             # Add to HDF5 file
-            grp = f.create_group(idx)
+            grp = f.create_group(str(idx))
             grp.create_dataset("targets", shape=clean_audio.shape,
                                dtype=clean_audio.dtype, data=clean_audio)
             grp.create_dataset("inputs", shape=noisy_audio.shape,
@@ -94,4 +94,4 @@ if __name__ == "__main__":
     data_dir = Path(args.dataset_dir)
     prepare_splits(Path(args.hdf_dir),
                    data_dir / args.clean_list,
-                   data_dir / args.noise_list, 44100, 1)
+                   data_dir / args.noise_list, args.sr, args.channels)
