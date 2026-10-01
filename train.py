@@ -85,7 +85,10 @@ def main(args):
         print("Training one epoch from iteration " + str(state["step"]))
         avg_time = 0.
         model.train()
-        with tqdm(total=len(train_data) // args.batch_size) as pbar:
+        local_steps = 0
+        with tqdm(total=((len(train_data)
+                          if args.max_train_steps < 0
+                          else args.max_train_steps) // args.batch_size)) as pbar:
             np.random.seed()
             for example_num, (x, targets) in enumerate(dataloader):
                 if args.cuda:
@@ -119,6 +122,9 @@ def main(args):
                     writer.add_audio("out_target", torch.mean(targets[0], 0), state["step"], sample_rate=args.sr)
 
                 pbar.update(1)
+                local_steps += 1
+                if args.max_train_steps >= 0 and local_steps > args.max_train_steps:
+                    break
 
         # VALIDATE
         val_loss = validate(args, model, criterion, val_data)
@@ -228,6 +234,8 @@ if __name__ == '__main__':
                         help="Skips to keep (-1 = all, 0 = none)")
     parser.add_argument('--skip_from', type=str, default="deep",
                         help="Keep skips near bottleneck (deep) or output (shallow)")
+    parser.add_argument('--max_train_steps', type=int, default=-1,
+                        help="Maximum number of training steps (-1 = all, 0 = none)")
 
     args = parser.parse_args()
 
