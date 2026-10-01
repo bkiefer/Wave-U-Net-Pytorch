@@ -29,8 +29,9 @@ def main(args):
     target_outputs = int(args.output_size * args.sr)
     model = Waveunet(args.channels, num_features, args.channels, kernel_size=args.kernel_size,
                      target_output_size=target_outputs, depth=args.depth, strides=args.strides,
-                     conv_type=args.conv_type, res=args.res)
-
+                     conv_type=args.conv_type, res=args.res,
+                     n_skips=args.n_skips, skip_from=args.skip_from)
+                     
     if args.cuda:
         model = model_utils.DataParallel(model)
         print("move model to gpu")
@@ -222,6 +223,11 @@ if __name__ == '__main__':
                         help="Resampling strategy: fixed sinc-based lowpass filtering or learned conv layer: fixed/learned")
     parser.add_argument('--feature_growth', type=str, default="double",
                         help="How the features in each layer should grow, either (add) the initial number of features each time, or multiply by 2 (double)")
+
+    parser.add_argument('--n_skips', type=int, default=-1,
+                        help="Skips to keep (-1 = all, 0 = none)")
+    parser.add_argument('--skip_from', type=str, default="deep",
+                        help="Keep skips near bottleneck (deep) or output (shallow)")
 
     args = parser.parse_args()
 

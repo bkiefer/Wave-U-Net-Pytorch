@@ -118,7 +118,7 @@ class DownsamplingBlock(nn.Module):
 class Waveunet(nn.Module):
     def __init__(self, num_inputs, num_channels, num_outputs,
                  kernel_size, target_output_size, conv_type,
-                 res, depth=1, strides=2):
+                 res, depth=1, strides=2, n_skips=-1, skip_from="deep"):
         super(Waveunet, self).__init__()
 
         self.num_levels = len(num_channels)
@@ -145,7 +145,7 @@ class Waveunet(nn.Module):
         for i in range(0, self.num_levels - 1):
             module.upsampling_blocks.append(
                 UpsamplingBlock(num_channels[-1-i], num_channels[-2-i], num_channels[-2-i], kernel_size, strides, depth, conv_type, res,
-                                use_shortcut=(i >= self.num_levels - 3)))
+                use_shortcut=((n_skips < 0) or ((i < n_skips) if skip_from == "deep" else (i >= self.num_levels - 1 - n_skips)))))
 
         module.bottlenecks = nn.ModuleList(
             [ConvLayer(num_channels[-1], num_channels[-1], kernel_size, 1, conv_type) for _ in range(depth)])
